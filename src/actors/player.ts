@@ -37,24 +37,15 @@ export class Player extends Actor {
 
   public onPostUpdate(engine: ex.Engine, delta: number): void {
     if (this.isJumpBuffering) {
-      if (this.jumpBufferTimer <= this.maxJumpBufferTime && this.isGrounded) {
-        // User has reached ground before buffer timer runs out
-        this.jump();
-      } else if (this.jumpBufferTimer > this.maxJumpBufferTime) {
-        // Buffer timer has run out, cancel buffering
-        this.cancelJumpBuffer();
-      } else {
-        // Increment buffer timer
-        this.jumpBufferTimer += delta;
-      }
+      this.jumpBufferUpdate(delta);
     }
 
     // Initiate jump
     if (engine.input.keyboard.wasPressed(KEY_JUMP)) {
-      this.isJumpBuffering = true;
-
       if (this.isGrounded) {
         this.jump();
+      } else {
+        this.jumpBufferStart();
       }
     }
 
@@ -76,8 +67,6 @@ export class Player extends Actor {
   }
 
   jump() {
-    this.cancelJumpBuffer();
-
     // Set variable jump flag
     this.isHoldingJump = true;
 
@@ -85,7 +74,21 @@ export class Player extends Actor {
     this.vel.y = this.jumpVelocity;
   }
 
-  cancelJumpBuffer() {
+  jumpBufferStart() {
+    this.isJumpBuffering = true;
+  }
+
+  jumpBufferUpdate(delta: number) {
+    if (this.jumpBufferTimer <= this.maxJumpBufferTime) {
+      // Increment buffer timer
+      this.jumpBufferTimer += delta;
+    } else {
+      // Buffer timer has run out, cancel buffering
+      this.jumpBufferStop();
+    }
+  }
+
+  jumpBufferStop() {
     this.isJumpBuffering = false;
     this.jumpBufferTimer = 0;
   }
@@ -114,6 +117,14 @@ export class Player extends Actor {
 
   onCollideWithGroundStart() {
     this.isGrounded = true;
+
+    if (
+      this.isJumpBuffering &&
+      this.jumpBufferTimer <= this.maxJumpBufferTime
+    ) {
+      this.jump();
+      this.jumpBufferStop();
+    }
   }
 
   onCollideWithGroundEnd() {
